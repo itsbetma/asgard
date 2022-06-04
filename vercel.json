@@ -1,7 +1,7 @@
 {
   "builds": [
     {
-      "src": "/server/api.py",
+      "src": "/server/app.py",
       "use": "@now/python"
     }
   ],
