@@ -6,19 +6,19 @@ from typing import Union
 
 from fastapi import FastAPI, Request
 
-routes = FastAPI()
+app = FastAPI()
 
 consumption_counter = 0
 consumption_increment = 0.1
 last_time = datetime.datetime.utcnow()
 
 
-@routes.get("/")
+@app.get("/")
 def read_root():
     return {"Heimdall": "Welcome do Asgard"}
 
 
-@routes.get("/consumption/{device}/")
+@app.get("/consumption/{device}/")
 def read_item(device: str, amt: Union[int, None] = None):
     amount = 15  # 15 minutes
     low, high = 0, 0
@@ -38,14 +38,14 @@ def read_item(device: str, amt: Union[int, None] = None):
     return dict(consumption=consumption.tolist(), unit="kW per minutes")
 
 
-@routes.get("/incremental/")
+@app.get("/incremental/")
 def read_item():
     global consumption_counter, last_time
     return dict(consumption=consumption_counter, consumption_increment=consumption_increment,
                 unit="kW per minutes")
 
 
-@routes.post("/incremental/set")
+@app.post("/incremental/set")
 async def incremental_set(info: Request):
     global consumption_counter, consumption_increment
     try:
@@ -59,7 +59,7 @@ async def incremental_set(info: Request):
                 unit="kW per minutes")
 
 
-@routes.get("/incremental/reset/")
+@app.get("/incremental/reset/")
 def read_item():
     global consumption_counter, consumption_increment
     consumption_counter = 0
@@ -68,7 +68,7 @@ def read_item():
                 unit="kW per minutes")
 
 
-@routes.get("/incremental/now")
+@app.get("/incremental/now")
 def read_item():
     global consumption_counter, consumption_increment, last_time
     time_now = datetime.datetime.utcnow()
