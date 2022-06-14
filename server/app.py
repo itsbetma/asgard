@@ -61,9 +61,10 @@ async def incremental_set(info: Request):
 
 @app.get("/incremental/reset/")
 def read_item():
-    global consumption_counter, consumption_increment
+    global consumption_counter, consumption_increment, last_time
     consumption_counter = 0
     consumption_increment = 0.1
+    last_time = datetime.datetime.utcnow()
     return dict(consumption=consumption_counter, consumption_increment=consumption_increment,
                 unit="kW per minutes")
 
@@ -75,5 +76,6 @@ def read_item():
     seconds = (time_now - last_time).seconds
     for i in range(seconds):
         consumption_counter += consumption_increment
+        consumption_counter = round(consumption_counter, 4)
     last_time = time_now
     return dict(consumption=consumption_counter, amount_of_seconds=seconds, consumption_increment=consumption_increment, unit="kW per minutes")
