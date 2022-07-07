@@ -4,13 +4,25 @@ from json import JSONDecodeError
 import numpy as np
 from typing import Union
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 
 app = FastAPI()
 
 consumption_counter = 0
 consumption_increment = 0.1
 last_time = datetime.datetime.utcnow()
+
+device_last_time = [
+    0,  # Shower
+    0,  # Air
+    0  # Heater
+]
+
+device_consumption = [
+    0,  # Shower
+    0,  # Air
+    0  # Heater
+]
 
 
 @app.get("/")
@@ -78,4 +90,63 @@ def read_item():
         consumption_counter += consumption_increment
         consumption_counter = round(consumption_counter, 4)
     last_time = time_now
-    return dict(consumption=consumption_counter, amount_of_seconds=seconds, consumption_increment=consumption_increment, unit="kW per minutes")
+    return dict(consumption=consumption_counter, amount_of_seconds=seconds, consumption_increment=consumption_increment,
+                unit="kW per minutes")
+
+
+@app.get("/v1/consumption")
+def consumption():
+    global device_consumption
+    minute_base_increase = 0.1
+    monthly_consumption = 0
+    time_now = datetime.datetime.utcnow()
+    day, month, year = time_now.day, time_now.month, time_now.year
+    first_day_of_month = datetime.datetime(year, month, day)
+    minutes_since_day_one = round((time_now - first_day_of_month).seconds / 60)
+    for i in range(minutes_since_day_one):
+        monthly_consumption += minute_base_increase
+        monthly_consumption = round(monthly_consumption, 4)
+    for device in device_consumption:
+        monthly_consumption += device
+    return dict(monthly_consumption=monthly_consumption, unit="kWh")
+
+
+@app.get("/v1/consumption/start/{device_param}")
+def read_item(device_param: str):
+    global device_last_time
+    if device_param == 'shower':
+        device_last_time[0] = datetime.datetime.utcnow()
+    if device_param == 'air_conditioner':
+        device_last_time[1] = datetime.datetime.utcnow()
+    if device_param == 'heater':
+        device_last_time[2] = datetime.datetime.utcnow()
+    return dict(device_consumption=device_consumption, device_last_time=device_last_time, unit="kWh")
+
+
+@app.get("/v1/consumption/end/{device_param}")
+def read_item(device_param: str):
+    global device_last_time, device_consumption
+
+    if device_param == 'shower':
+        if not isinstance(device_last_time[0], datetime.datetime):
+            raise HTTPException(status_code=400, detail="It seems that you had not started the consumption.")
+        minutes = round((datetime.datetime.utcnow() - device_last_time[0]).seconds / 60)
+        device_last_time[0] = 0
+        for minute in range(minutes):
+            device_consumption[0] += 0.5
+    if device_param == 'air_conditioner':
+        if not isinstance(device_last_time[1], datetime.datetime):
+            raise HTTPException(status_code=400, detail="It seems that you had not started the consumption.")
+        minutes = round((datetime.datetime.utcnow() - device_last_time[1]).seconds / 60)
+        device_last_time[1] = 0
+        for minute in range(minutes):
+            device_consumption[1] += 0.5
+    if device_param == 'heater':
+        if not isinstance(device_last_time[2], datetime.datetime):
+            raise HTTPException(status_code=400, detail="It seems that you had not started the consumption.")
+        minutes = round((datetime.datetime.utcnow() - device_last_time[2]).seconds / 60)
+        device_last_time[2] = 0
+        for minute in range(minutes):
+            device_consumption[2] += 0.5
+
+    return dict(device_consumption=device_consumption, device_last_time=device_last_time, unit="kWh")
